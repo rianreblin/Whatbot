@@ -55,7 +55,7 @@ def responder():
         else:
             r = "Erro ao enviar o e-mail. Tente novamente mais tarde."
         usuarios[num] = {"estado": "inicial", "destino": ""}
-    return jsonify({"reply": r})
+    return jsonify({"replies": [r]})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000)
