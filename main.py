@@ -4,14 +4,13 @@ from email.mime.text import MIMEText
 
 app = Flask(__name__)
 
-# Variáveis de ambiente (defina no sistema ou substitua por valores diretos)
-EMAIL_REMETENTE = os.getenv("rianreblin@gmail.com")  # Ex: "seuemail@gmail.com"
-SENHA_APP = os.getenv("sckt ujqr fkcu oujq")              # Ex: senha gerada pelo Google
+EMAIL_REMETENTE = os.getenv("rianreblin@gmail.com")  # exemplo: seuemail@gmail.com
+SENHA_APP = os.getenv("sckt ujqr fkcu oujq")              # senha gerada no Google App Passwords
 
-# Controle de estado por usuário
+# Estado por número de telefone
 usuarios = {}
 
-# Função para enviar o e-mail
+# Envio de e-mail com retorno de erro visível
 def enviar_email(destino, assunto, corpo):
     try:
         msg = MIMEText(corpo)
@@ -23,8 +22,9 @@ def enviar_email(destino, assunto, corpo):
             smtp.send_message(msg)
         return True
     except Exception as e:
-        print("❌ Erro ao enviar e-mail:", e)
-        return False
+        erro = str(e)
+        print("❌ Erro ao enviar e-mail:", erro)
+        return erro  # Retorna o erro para ser mostrado na resposta
 
 # Rota principal do bot
 @app.route('/responder', methods=['POST'])
@@ -37,7 +37,7 @@ def responder():
     num = query.get("sender") or query.get("number") or query.get("from") or "desconhecido"
 
     if num == "desconhecido":
-        return jsonify({"replies": [{"message": "⚠️ Erro: número do usuário não identificado. Verifique o JSON enviado."}]})
+        return jsonify({"replies": [{"message": "⚠️ Erro: número do usuário não identificado. Verifique o JSON."}]})
 
     if num not in usuarios:
         usuarios[num] = {"estado": "inicial", "destino": ""}
@@ -52,7 +52,7 @@ def responder():
         elif msg.lower() == "b":
             resposta = "📚 Horário escolar:\nSegunda a sexta: 08h às 17h"
         elif msg.lower() in ["oi", "olá", "menu"]:
-            resposta = "👋 Bem-vindo! Escolha uma opção:\nA - Enviar e-mail\nB - Ver horário"
+            resposta = "👋 Olá! Escolha uma opção:\nA - Enviar e-mail\nB - Ver horário"
     elif estado == "aguardando_email":
         if re.match(r"[^@]+@[^@]+\.[^@]+", msg):
             usuarios[num]["destino"] = msg
@@ -62,16 +62,15 @@ def responder():
             resposta = "⚠️ E-mail inválido. Por favor, digite um e-mail válido."
     elif estado == "aguardando_mensagem":
         destino = usuarios[num]["destino"]
-        sucesso = enviar_email(destino, "Mensagem via WhatsApp", msg)
-        if sucesso:
+        resultado = enviar_email(destino, "Mensagem via WhatsApp", msg)
+        if resultado == True:
             resposta = f"✅ E-mail enviado com sucesso para {destino}!"
         else:
-            resposta = "❌ Ocorreu um erro ao enviar o e-mail. Tente novamente mais tarde."
+            resposta = f"❌ Erro ao enviar o e-mail:\n{resultado}"
         usuarios[num] = {"estado": "inicial", "destino": ""}
 
     return jsonify({"replies": [{"message": resposta}]})
 
-# Rota simples para saber se o servidor está ativo
 @app.route('/')
 def home():
     return 'Servidor WhatsAuto ativo ✅'
