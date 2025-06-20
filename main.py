@@ -4,13 +4,13 @@ from email.mime.text import MIMEText
 
 app = Flask(__name__)
 
-EMAIL_REMETENTE = os.getenv("rianreblin@gmail.com")  # exemplo: seuemail@gmail.com
-SENHA_APP = os.getenv("sckt ujqr fkcu oujq")              # senha gerada no Google App Passwords
+# Defina essas variáveis no ambiente do Render
+EMAIL_REMETENTE = os.getenv("rianreblin@gmail.com")
+SENHA_APP = os.getenv("sckt ujqr fkcu oujq")
 
-# Estado por número de telefone
 usuarios = {}
 
-# Envio de e-mail com retorno de erro visível
+# Envio de e-mail com retorno do erro
 def enviar_email(destino, assunto, corpo):
     try:
         msg = MIMEText(corpo)
@@ -24,9 +24,8 @@ def enviar_email(destino, assunto, corpo):
     except Exception as e:
         erro = str(e)
         print("❌ Erro ao enviar e-mail:", erro)
-        return erro  # Retorna o erro para ser mostrado na resposta
+        return erro  # Retorna o erro para mostrar no WhatsApp
 
-# Rota principal do bot
 @app.route('/responder', methods=['POST'])
 def responder():
     dados = request.get_json()
