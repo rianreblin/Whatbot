@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 # Defina essas variáveis no ambiente do Render
 EMAIL_REMETENTE = os.getenv("rianreblin@gmail.com")
-SENHA_APP = os.getenv("sckt ujqr fkcu oujq")
+SENHA_APP = os.getenv("scktujqrfkcuoujq")
 
 usuarios = {}
 
