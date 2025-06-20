@@ -4,16 +4,21 @@ from email.mime.text import MIMEText
 
 app = Flask(__name__)
 
-# Variáveis de ambiente (use exatamente esses nomes no Render)
+# Usa as variáveis de ambiente (Configure no Render)
 EMAIL_REMETENTE = os.getenv("rianreblin@gmail.com")
 SENHA_APP = os.getenv("uytioyzxfbcpdmht")
 
 usuarios = {}
 
+# Função de envio de e-mail com debug
 def enviar_email(destino, assunto, corpo):
     try:
-        print(f"DEBUG -> EMAIL_REMETENTE: {EMAIL_REMETENTE}")
-        print(f"DEBUG -> SENHA_APP: {'*' * len(SENHA_APP)}")  # Só mostra **** para não expor senha
+        print(f"DEBUG -> EMAIL_REMETENTE: {EMAIL_REMETENTE or 'None'}")
+        print(f"DEBUG -> SENHA_APP: {'*' * len(SENHA_APP) if SENHA_APP else 'None'}")
+
+        if not EMAIL_REMETENTE or not SENHA_APP:
+            return "⚠️ Variáveis de ambiente não configuradas corretamente."
+
         msg = MIMEText(corpo)
         msg['Subject'] = assunto
         msg['From'] = EMAIL_REMETENTE
@@ -24,6 +29,7 @@ def enviar_email(destino, assunto, corpo):
             smtp.starttls()
             smtp.login(EMAIL_REMETENTE, SENHA_APP)
             smtp.send_message(msg)
+
         return True
     except Exception as e:
         erro = str(e)
@@ -74,9 +80,20 @@ def responder():
 
     return jsonify({"replies": [{"message": resposta}]})
 
+
 @app.route('/')
 def home():
     return 'Servidor WhatsAuto ativo ✅'
+
+
+# (Opcional) Rota de debug para testar variáveis no navegador
+@app.route('/debug')
+def debug():
+    return {
+        "EMAIL_REMETENTE": EMAIL_REMETENTE or "❌ Não configurado",
+        "SENHA_APP": "✔️ Definida" if SENHA_APP else "❌ Não configurada"
+    }
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000)
