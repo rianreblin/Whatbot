@@ -1,54 +1,80 @@
 from flask import Flask, request, jsonify
+import smtplib, os, re
+from email.mime.text import MIMEText
 
 app = Flask(__name__)
 
-@app.route('/')
-def home():
-    return 'Servidor WhatsAuto ativo ✅'
+# Variáveis de ambiente (defina no sistema ou substitua por valores diretos)
+EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE")  # Ex: "seuemail@gmail.com"
+SENHA_APP = os.getenv("SENHA_APP")              # Ex: senha gerada pelo Google
 
+# Controle de estado por usuário
+usuarios = {}
+
+# Função para enviar o e-mail
+def enviar_email(destino, assunto, corpo):
+    try:
+        msg = MIMEText(corpo)
+        msg['Subject'] = assunto
+        msg['From'] = EMAIL_REMETENTE
+        msg['To'] = destino
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(EMAIL_REMETENTE, SENHA_APP)
+            smtp.send_message(msg)
+        return True
+    except Exception as e:
+        print("❌ Erro ao enviar e-mail:", e)
+        return False
+
+# Rota principal do bot
 @app.route('/responder', methods=['POST'])
 def responder():
     dados = request.get_json()
-    print("📥 DADOS RECEBIDOS:", dados)
+    print("📥 JSON recebido:", dados)
 
-    query = dados.get("query", {})  # pegar o campo query
+    query = dados.get("query", {})
     msg = query.get("message", "").strip()
-    numero = query.get("sender") or query.get("number") or "desconhecido"
+    num = query.get("sender") or query.get("number") or query.get("from") or "desconhecido"
 
-    if numero == "desconhecido":
-        return jsonify({
-            "replies": [{
-                "message": "⚠️ Erro: número do usuário não identificado.\n\nVerifique o JSON enviado."
-            }]
-        })
+    if num == "desconhecido":
+        return jsonify({"replies": [{"message": "⚠️ Erro: número do usuário não identificado. Verifique o JSON enviado."}]})
 
-    if msg.upper() == "A":
-        return jsonify({
-            "replies": [{
-                "message": "📧 Para qual e-mail você quer enviar?"
-            }]
-        })
+    if num not in usuarios:
+        usuarios[num] = {"estado": "inicial", "destino": ""}
 
-    elif msg.upper() == "B":
-        return jsonify({
-            "replies": [{
-                "message": "🕒 Horário da escola:\nSeg-Sex: 07h às 18h\nSábado: 08h às 12h"
-            }]
-        })
+    estado = usuarios[num]["estado"]
+    resposta = "👋 Envie:\nA - Para enviar um e-mail\nB - Para ver o horário da escola"
 
-    elif "@" in msg and "." in msg:
-        return jsonify({
-            "replies": [{
-                "message": f"✅ E-mail '{msg}' recebido! Agora envie a mensagem que deseja mandar."
-            }]
-        })
+    if estado == "inicial":
+        if msg.lower() == "a":
+            usuarios[num]["estado"] = "aguardando_email"
+            resposta = "📧 Para qual e-mail você quer enviar a mensagem?"
+        elif msg.lower() == "b":
+            resposta = "📚 Horário escolar:\nSegunda a sexta: 08h às 17h"
+        elif msg.lower() in ["oi", "olá", "menu"]:
+            resposta = "👋 Bem-vindo! Escolha uma opção:\nA - Enviar e-mail\nB - Ver horário"
+    elif estado == "aguardando_email":
+        if re.match(r"[^@]+@[^@]+\.[^@]+", msg):
+            usuarios[num]["destino"] = msg
+            usuarios[num]["estado"] = "aguardando_mensagem"
+            resposta = f"✉️ Agora digite a mensagem que deseja enviar para {msg}."
+        else:
+            resposta = "⚠️ E-mail inválido. Por favor, digite um e-mail válido."
+    elif estado == "aguardando_mensagem":
+        destino = usuarios[num]["destino"]
+        sucesso = enviar_email(destino, "Mensagem via WhatsApp", msg)
+        if sucesso:
+            resposta = f"✅ E-mail enviado com sucesso para {destino}!"
+        else:
+            resposta = "❌ Ocorreu um erro ao enviar o e-mail. Tente novamente mais tarde."
+        usuarios[num] = {"estado": "inicial", "destino": ""}
 
-    else:
-        return jsonify({
-            "replies": [{
-                "message": "👋 Olá! Envie:\nA - Para enviar um e-mail\nB - Para ver o horário da escola"
-            }]
-        })
+    return jsonify({"replies": [{"message": resposta}]})
+
+# Rota simples para saber se o servidor está ativo
+@app.route('/')
+def home():
+    return 'Servidor WhatsAuto ativo ✅'
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000)
