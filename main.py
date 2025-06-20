@@ -4,19 +4,24 @@ from email.mime.text import MIMEText
 
 app = Flask(__name__)
 
-# Variáveis de ambiente (nome das variáveis, não valores)
-EMAIL_REMETENTE = os.getenv("rianreblin@gmail.com")
-SENHA_APP = os.getenv("scktujqrfkcuoujq")
+# Variáveis de ambiente (use exatamente esses nomes no Render)
+EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE", "rianreblin@gmail.com")
+SENHA_APP = os.getenv("SENHA_APP", "scktujqrfkcuoujq")
 
 usuarios = {}
 
 def enviar_email(destino, assunto, corpo):
     try:
+        print(f"DEBUG -> EMAIL_REMETENTE: {EMAIL_REMETENTE}")
+        print(f"DEBUG -> SENHA_APP: {'*' * len(SENHA_APP)}")  # Só mostra **** para não expor senha
         msg = MIMEText(corpo)
         msg['Subject'] = assunto
         msg['From'] = EMAIL_REMETENTE
         msg['To'] = destino
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+
+        with smtplib.SMTP('smtp.gmail.com', 587) as smtp:
+            smtp.ehlo()
+            smtp.starttls()
             smtp.login(EMAIL_REMETENTE, SENHA_APP)
             smtp.send_message(msg)
         return True
