@@ -4,9 +4,10 @@ from email.mime.text import MIMEText
 
 app = Flask(__name__)
 
-EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE")
-SENHA_APP = os.getenv("SENHA_APP")
+EMAIL_REMETENTE = os.getenv("rianreblin@gmail.com")
+SENHA_APP = os.getenv("sckt ujqr fkcu oujq")
 
+# Guarda os estados de conversa de cada número
 usuarios = {}
 
 def enviar_email(destino, assunto, corpo):
@@ -26,35 +27,44 @@ def enviar_email(destino, assunto, corpo):
 @app.route('/responder', methods=['POST'])
 def responder():
     dados = request.get_json()
+
     msg = dados.get("message", "").strip()
-    num = dados.get("number", "")
+    num = dados.get("number", "")  # <- WhatsAuto envia isso, certifique-se de que está vindo!
+
+    if not num:
+        return jsonify({"replies": [{"message": "Erro: número não informado."}]})
+
     if num not in usuarios:
         usuarios[num] = {"estado": "inicial", "destino": ""}
-    est = usuarios[num]["estado"]
-    r = "Envie 'A' para enviar e-mail ou 'B' para ver horário."
-    if est == "inicial":
+
+    estado = usuarios[num]["estado"]
+    resposta = "Envie 'A' para enviar e-mail ou 'B' para ver horário."
+
+    if estado == "inicial":
         if msg.lower() == "a":
             usuarios[num]["estado"] = "aguardando_email"
-            r = "Para qual e-mail deseja enviar a mensagem?"
+            resposta = "Para qual e-mail você quer enviar a mensagem?"
         elif msg.lower() == "b":
-            r = "Horário: Segunda a sexta, das 8h às 17h."
+            resposta = "Horário da escola: Segunda a sexta, das 8h às 17h."
         elif msg.lower() in ["oi", "olá"]:
-            r = "Olá! Escolha uma opção:\nA - Enviar e-mail\nB - Ver horário"
-    elif est == "aguardando_email":
+            resposta = "Olá! Escolha uma opção:\nA - Enviar e-mail\nB - Ver horário"
+    elif estado == "aguardando_email":
         if re.match(r"[^@]+@[^@]+\.[^@]+", msg):
             usuarios[num]["destino"] = msg
             usuarios[num]["estado"] = "aguardando_mensagem"
-            r = f"Ok! Agora digite a mensagem que deseja enviar para {msg}"
+            resposta = f"Ok! Agora digite a mensagem que deseja enviar para {msg}."
         else:
-            r = "E-mail inválido. Por favor, digite um e-mail válido."
-    else:
+            resposta = "E-mail inválido. Por favor, digite um e-mail válido."
+    elif estado == "aguardando_mensagem":
         destino = usuarios[num]["destino"]
         sucesso = enviar_email(destino, "Mensagem via WhatsApp", msg)
         if sucesso:
-            r = f"Mensagem enviada com sucesso para {destino}!"
+            resposta = f"E-mail enviado com sucesso para {destino}!"
         else:
-            r = "Erro ao enviar o e-mail. Tente novamente mais tarde."
+            resposta = "Erro ao enviar o e-mail. Tente novamente mais tarde."
         usuarios[num] = {"estado": "inicial", "destino": ""}
-    return jsonify({"replies": [{"message": r}]})
+
+    return jsonify({"replies": [{"message": resposta}]})
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000)
