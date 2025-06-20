@@ -11,8 +11,9 @@ def responder():
     dados = request.get_json()
     print("📥 DADOS RECEBIDOS:", dados)
 
-    msg = dados.get("message", "").strip()
-    numero = dados.get("sender") or dados.get("number") or "desconhecido"
+    query = dados.get("query", {})  # pegar o campo query
+    msg = query.get("message", "").strip()
+    numero = query.get("sender") or query.get("number") or "desconhecido"
 
     if numero == "desconhecido":
         return jsonify({
@@ -30,7 +31,9 @@ def responder():
 
     elif msg.upper() == "B":
         return jsonify({
-            "message": "🕒 Horário da escola:\nSeg-Sex: 07h às 18h\nSábado: 08h às 12h"
+            "replies": [{
+                "message": "🕒 Horário da escola:\nSeg-Sex: 07h às 18h\nSábado: 08h às 12h"
+            }]
         })
 
     elif "@" in msg and "." in msg:
