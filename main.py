@@ -5,8 +5,8 @@ from email.mime.text import MIMEText
 app = Flask(__name__)
 
 # Variáveis de ambiente (nome das variáveis, não valores)
-EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE")
-SENHA_APP = os.getenv("SENHA_APP")
+EMAIL_REMETENTE = os.getenv("rianreblin@gmail.com")
+SENHA_APP = os.getenv("scktujqrfkcuoujq")
 
 usuarios = {}
 
