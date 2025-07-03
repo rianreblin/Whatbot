@@ -8,7 +8,6 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = 'segredo'
 
-# Variáveis de ambiente
 EMAIL_REMETENTE = "rianreblin@gmail.com"
 SENHA_APP = "jijbhqsgcsgywkgk"
 
@@ -16,7 +15,13 @@ usuarios = {}
 tarefas = []
 historico = []
 
-# Função para enviar e-mail
+MATERIAS = sorted([
+    "Artes", "Biologia", "Educação Física", "Empreendedorismo",
+    "Filosofia", "Física", "Geografia", "Gestão De Pessoas",
+    "Gestão De Qualidade", "História", "Língua Inglesa",
+    "Língua Portuguêsa", "Marketing", "Matemática",
+    "Projeto De Vida", "Química", "Sociologia"
+])
 
 def enviar_email(destino, assunto, corpo):
     try:
@@ -55,7 +60,9 @@ def responder():
 
     if msg == "/tarefa":
         if tarefas:
-            resposta = "📝 Tarefas:\n" + "\n".join([f"📌 {t['texto']} - {t['dia']} - {t['material']}" for t in tarefas])
+            resposta = "📒 Tarefas:\n" + "\n".join([
+                f"📌 {t['texto']} - {t['data']}\nMATERIA: {t['materia']}" for t in tarefas
+            ])
         else:
             resposta = "📭 Nenhuma tarefa registrada."
 
@@ -99,11 +106,11 @@ def login():
             return redirect(url_for('painel'))
         return "Login inválido"
     return render_template_string('''
-        <form method="post">
-            <input name="username" placeholder="Usuário">
-            <input name="password" placeholder="Senha" type="password">
-            <button>Entrar</button>
-        </form>
+    <form method="post">
+        <input name="username" placeholder="Usuário">
+        <input name="password" placeholder="Senha" type="password">
+        <button>Entrar</button>
+    </form>
     ''')
 
 @app.route('/logout')
@@ -119,13 +126,19 @@ def painel():
         <h1>Gerenciador de Tarefas</h1>
         <form method="post" action="/add_tarefa">
             <input name="texto" placeholder="Descrição da tarefa">
-            <input name="dia" type="date" placeholder="Dia">
-            <input name="material" placeholder="Material">
+            <label>Data:</label>
+            <input type="date" name="data">
+            <label>Matéria:</label>
+            <select name="materia">
+                {% for m in materias %}
+                <option value="{{m}}">{{m}}</option>
+                {% endfor %}
+            </select>
             <button>Adicionar</button>
         </form>
         <ul>
         {% for tarefa in tarefas %}
-            <li>{{tarefa.texto}} - {{tarefa.dia}} - {{tarefa.material}} <a href="/remover_tarefa?texto={{tarefa.texto}}">Remover</a></li>
+            <li>{{tarefa.texto}} - {{tarefa.data}} - {{tarefa.materia}} <a href="/remover_tarefa?texto={{tarefa.texto}}">Remover</a></li>
         {% endfor %}
         </ul>
         <h2>Histórico</h2>
@@ -135,16 +148,16 @@ def painel():
         {% endfor %}
         </ul>
         <a href="/logout">Sair</a>
-    ''', tarefas=tarefas, historico=historico)
+    ''', tarefas=tarefas, historico=historico, materias=MATERIAS)
 
 @app.route('/add_tarefa', methods=['POST'])
 def add_tarefa():
     if not session.get('logado'):
         return redirect(url_for('login'))
     texto = request.form['texto']
-    dia = request.form['dia']
-    material = request.form['material']
-    tarefas.append({"texto": texto, "dia": dia, "material": material})
+    data = request.form['data']
+    materia = request.form['materia']
+    tarefas.append({"texto": texto, "data": data, "materia": materia})
     return redirect(url_for('painel'))
 
 @app.route('/remover_tarefa')
