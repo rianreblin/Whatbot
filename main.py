@@ -1,14 +1,10 @@
 from flask import Flask, request, jsonify, render_template_string, redirect, url_for, session import smtplib import os import re from email.mime.text import MIMEText
 
-app = Flask(name) app.secret_key = 'segredo_teste_123'  # Necessário para sessões de login
-
-Informações fixas do e-mail (por enquanto)
+app = Flask(name) app.secret_key = 'segredo_teste_123'
 
 EMAIL_REMETENTE = "rianreblin@gmail.com" SENHA_APP = "jijbhqsgcsgywkgk"
 
-usuarios = {}
-
-Função para enviar e-mail
+usuarios = {} tarefas = []  # Lista para armazenar tarefas
 
 def enviar_email(destino, assunto, corpo): if not EMAIL_REMETENTE or not SENHA_APP: return "⚠️ Variáveis de envio não configuradas corretamente." try: msg = MIMEText(corpo) msg['Subject'] = assunto msg['From'] = EMAIL_REMETENTE msg['To'] = destino with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp: smtp.login(EMAIL_REMETENTE, SENHA_APP) smtp.send_message(msg) return True except Exception as e: return f"❌ Erro ao enviar o e-mail:\n{e}"
 
@@ -17,11 +13,18 @@ def enviar_email(destino, assunto, corpo): if not EMAIL_REMETENTE or not SENHA_A
 if num == "desconhecido":
     return jsonify({"replies": [{"message": "⚠️ Erro: número do usuário não identificado."}]})
 
+if msg.lower() == "/tarefa":
+    if tarefas:
+        lista = "\n".join([f"- {t}" for t in tarefas])
+        return jsonify({"replies": [{"message": f"📋 Tarefas atuais:\n{lista}"}]})
+    else:
+        return jsonify({"replies": [{"message": "📭 Nenhuma tarefa cadastrada."}]})
+
 if num not in usuarios:
     usuarios[num] = {"estado": "inicial", "destino": "", "assunto": "Mensagem via WhatsApp"}
 
 estado = usuarios[num]["estado"]
-resposta = "👋 Envie:\nA - Para enviar um e-mail\nB - Para ver o horário da escola"
+resposta = "👋 Envie:\nA - Para enviar um e-mail\nB - Para ver o horário da escola\n/tarefa - Ver tarefas"
 
 if estado == "inicial":
     if msg.lower() == "a":
@@ -30,7 +33,7 @@ if estado == "inicial":
     elif msg.lower() == "b":
         resposta = "📚 Horário escolar:\nSegunda a sexta: 08h às 17h"
     elif msg.lower() in ["oi", "olá", "menu"]:
-        resposta = "👋 Olá! Escolha:\nA - Enviar e-mail\nB - Ver horário"
+        resposta = "👋 Olá! Escolha:\nA - Enviar e-mail\nB - Ver horário\n/tarefa - Ver tarefas"
 elif estado == "aguardando_email":
     if re.match(r"[^@]+@[^@]+\.[^@]+", msg):
         usuarios[num]["destino"] = msg
@@ -57,7 +60,7 @@ elif estado == "aguardando_assunto":
 
 return jsonify({"replies": [{"message": resposta}]})
 
-============================ INTERFACE WEB COM LOGIN ============================
+============================ INTERFACE WEB COM LOGIN E TAREFAS ============================
 
 LOGIN_TEMPLATE = '''
 
@@ -69,14 +72,30 @@ LOGIN_TEMPLATE = '''
 </form>
 '''PAINEL_TEMPLATE = '''
 
-<h2>Bem-vindo ao Painel!</h2>
+<h2>Painel do Bot</h2>
 <p>Seu bot está online ✅</p>
+<h3>📋 Tarefas cadastradas:</h3>
+<ul>
+  {% for tarefa in tarefas %}<li>{{ tarefa }}</li>{% else %}<li>Nenhuma tarefa</li>{% endfor %}
+</ul>
+<form method="post" action="/adicionar">
+  <input name="nova" placeholder="Nova tarefa">
+  <button type="submit">Adicionar</button>
+</form>
+<form method="post" action="/remover">
+  <input name="indice" placeholder="Nº da tarefa para remover">
+  <button type="submit">Remover</button>
+</form>
 <a href="/logout">Sair</a>
 '''@app.route("/login", methods=["GET", "POST"]) def login(): if request.method == "POST": if request.form['usuario'] == "admin" and request.form['senha'] == "admin": session['logado'] = True return redirect(url_for('painel')) return render_template_string(LOGIN_TEMPLATE)
 
 @app.route("/logout") def logout(): session.pop('logado', None) return redirect(url_for('login'))
 
-@app.route("/painel") def painel(): if not session.get('logado'): return redirect(url_for('login')) return render_template_string(PAINEL_TEMPLATE)
+@app.route("/painel") def painel(): if not session.get('logado'): return redirect(url_for('login')) return render_template_string(PAINEL_TEMPLATE, tarefas=tarefas)
+
+@app.route("/adicionar", methods=["POST"]) def adicionar(): if not session.get('logado'): return redirect(url_for('login')) nova = request.form.get("nova") if nova: tarefas.append(nova.strip()) return redirect(url_for('painel'))
+
+@app.route("/remover", methods=["POST"]) def remover(): if not session.get('logado'): return redirect(url_for('login')) try: idx = int(request.form.get("indice")) if 0 <= idx < len(tarefas): tarefas.pop(idx) except: pass return redirect(url_for('painel'))
 
 @app.route('/') def home(): return 'Servidor WhatsAuto ativo ✅'
 
