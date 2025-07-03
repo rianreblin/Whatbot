@@ -8,7 +8,7 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = 'segredo'
 
-# Dados do e-mail
+# Configurações fixas (sem variáveis de ambiente)
 EMAIL_REMETENTE = "rianreblin@gmail.com"
 SENHA_APP = "jijbhqsgcsgywkgk"
 
@@ -16,7 +16,6 @@ usuarios = {}
 tarefas = []
 historico = []
 
-# Função para enviar e-mail
 def enviar_email(destino, assunto, corpo):
     try:
         msg = MIMEText(corpo)
@@ -54,15 +53,19 @@ def responder():
 
     if msg == "/tarefa":
         if tarefas:
-            resposta = "📝 Tarefas:\n" + "\n".join([f"📌 {t['texto']} - {t['dia']}" for t in tarefas])
+            resposta = "📝 Tarefas:\n" + "\n".join(
+                [f"📌 {t['texto']} - {t['dia']} ({t['materia']})" for t in tarefas]
+            )
         else:
             resposta = "📭 Nenhuma tarefa registrada."
+
     elif estado == "inicial":
         if msg.lower() == "a":
             usuarios[num]["estado"] = "aguardando_email"
             resposta = "📧 Qual e-mail você deseja enviar?"
         elif msg.lower() == "b":
             resposta = "📚 Horário escolar:\nSeg-Sex: 08h às 17h"
+
     elif estado == "aguardando_email":
         if re.match(r"[^@]+@[^@]+\.[^@]+", msg):
             usuarios[num]["destino"] = msg
@@ -70,6 +73,7 @@ def responder():
             resposta = f"📌 Deseja alterar o assunto do e-mail?\nPadrão: 'Mensagem via WhatsApp'.\nDigite o novo assunto ou envie 'ok' para manter."
         else:
             resposta = "⚠️ E-mail inválido. Tente novamente."
+
     elif estado == "confirmar_assunto":
         if msg.lower() == "ok":
             usuarios[num]["assunto"] = "Mensagem via WhatsApp"
@@ -77,6 +81,7 @@ def responder():
             usuarios[num]["assunto"] = msg
         usuarios[num]["estado"] = "aguardando_mensagem"
         resposta = f"✏️ Agora digite a mensagem que deseja enviar para {usuarios[num]['destino']}"
+
     elif estado == "aguardando_mensagem":
         destino = usuarios[num]["destino"]
         assunto = usuarios[num]["assunto"]
@@ -89,6 +94,7 @@ def responder():
 
     return jsonify({"replies": [{"message": resposta}]})
 
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -97,11 +103,11 @@ def login():
             return redirect(url_for('painel'))
         return "Login inválido"
     return render_template_string('''
-    <form method="post">
-        <input name="username" placeholder="Usuário">
-        <input name="password" placeholder="Senha" type="password">
-        <button>Entrar</button>
-    </form>
+        <form method="post">
+            <input name="username" placeholder="Usuário">
+            <input name="password" placeholder="Senha" type="password">
+            <button>Entrar</button>
+        </form>
     ''')
 
 @app.route('/logout')
@@ -114,24 +120,27 @@ def painel():
     if not session.get('logado'):
         return redirect(url_for('login'))
     return render_template_string('''
-    <h1>Gerenciador de Tarefas</h1>
-    <form method="post" action="/add_tarefa">
-        <input name="texto" placeholder="Descrição da tarefa">
-        <input name="dia" type="date">
-        <button>Adicionar</button>
-    </form>
-    <ul>
-        {% for tarefa in tarefas %}
-        <li>{{tarefa.texto}} - {{tarefa.dia}} <a href="/remover_tarefa?texto={{tarefa.texto}}">Remover</a></li>
-        {% endfor %}
-    </ul>
-    <h2>Histórico</h2>
-    <ul>
-        {% for h in historico[-20:] %}
-        <li><b>{{h.numero}}</b>: {{h.mensagem}} ({{h.hora}})</li>
-        {% endfor %}
-    </ul>
-    <a href="/logout">Sair</a>
+        <h1>Gerenciador de Tarefas</h1>
+        <form method="post" action="/add_tarefa">
+            <input name="texto" placeholder="Descrição da tarefa" required>
+            <input name="materia" placeholder="Matéria" required>
+            <input name="dia" type="date" required>
+            <button>Adicionar</button>
+        </form>
+        <ul>
+            {% for tarefa in tarefas %}
+                <li>{{tarefa.texto}} - {{tarefa.dia}} ({{tarefa.materia}})
+                    <a href="/remover_tarefa?texto={{tarefa.texto}}">Remover</a>
+                </li>
+            {% endfor %}
+        </ul>
+        <h2>Histórico</h2>
+        <ul>
+            {% for h in historico[-20:] %}
+                <li><b>{{h.numero}}</b>: {{h.mensagem}} ({{h.hora}})</li>
+            {% endfor %}
+        </ul>
+        <a href="/logout">Sair</a>
     ''', tarefas=tarefas, historico=historico)
 
 @app.route('/add_tarefa', methods=['POST'])
@@ -140,7 +149,8 @@ def add_tarefa():
         return redirect(url_for('login'))
     texto = request.form['texto']
     dia = request.form['dia']
-    tarefas.append({"texto": texto, "dia": dia})
+    materia = request.form['materia']
+    tarefas.append({"texto": texto, "dia": dia, "materia": materia})
     return redirect(url_for('painel'))
 
 @app.route('/remover_tarefa')
